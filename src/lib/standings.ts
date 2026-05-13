@@ -1,29 +1,40 @@
 import type { DriverStanding, ConstructorStanding, RaceCalendarEntry } from "@/types";
+import { fetchWikipediaThumbnail } from "./wikipedia";
 
 const CURRENT_SEASON = 2026;
 
 interface JolpicaDriverStanding {
   position: string;
+  positionText: string;
+  points: string;
+  wins: string;
   Driver: {
+    driverId: string;
+    code: string;
+    url: string;
     givenName: string;
     familyName: string;
     nationality: string;
   };
   Constructors: Array<{
+    constructorId: string;
+    url: string;
     name: string;
+    nationality: string;
   }>;
-  points: string;
-  wins: string;
 }
 
 interface JolpicaConstructorStanding {
   position: string;
+  positionText: string;
+  points: string;
+  wins: string;
   Constructor: {
+    constructorId: string;
+    url: string;
     name: string;
     nationality: string;
   };
-  points: string;
-  wins: string;
 }
 
 interface JolpicaRace {
@@ -49,6 +60,8 @@ interface JolpicaRace {
 interface JolpicaResponse {
   MRData?: {
     StandingsTable?: {
+      season: string;
+      round: string;
       StandingsLists?: Array<{
         DriverStandings?: JolpicaDriverStanding[];
         ConstructorStandings?: JolpicaConstructorStanding[];
@@ -83,16 +96,33 @@ export async function fetchDriverStandings(): Promise<DriverStanding[]> {
     return [];
   }
 
-  return data.MRData.StandingsTable.StandingsLists[0].DriverStandings.map(
+  const drivers: DriverStanding[] = data.MRData.StandingsTable.StandingsLists[0].DriverStandings.map(
     (entry): DriverStanding => ({
       position: parseInt(entry.position, 10),
       driverName: `${entry.Driver.givenName} ${entry.Driver.familyName}`,
       driverNationality: entry.Driver.nationality,
       constructor: entry.Constructors[0]?.name || "Unknown",
+      constructorId: entry.Constructors[0]?.constructorId || "",
       points: parseInt(entry.points, 10),
       wins: parseInt(entry.wins, 10),
-    })
+      driverId: entry.Driver.driverId,
+      code: entry.Driver.code,
+    }),
   );
+
+  const thumbnails = await Promise.allSettled(
+    drivers.map((d) => {
+      const wikiUrl = data.MRData!.StandingsTable!.StandingsLists![0]!.DriverStandings![
+        drivers.indexOf(d)
+      ]?.Driver?.url;
+      return wikiUrl ? fetchWikipediaThumbnail(wikiUrl) : Promise.resolve(null);
+    }),
+  );
+
+  return drivers.map((d, i) => ({
+    ...d,
+    imageUrl: thumbnails[i].status === "fulfilled" ? (thumbnails[i].value ?? undefined) : undefined,
+  }));
 }
 
 export async function fetchConstructorStandings(): Promise<ConstructorStanding[]> {
@@ -103,15 +133,30 @@ export async function fetchConstructorStandings(): Promise<ConstructorStanding[]
     return [];
   }
 
-  return data.MRData.StandingsTable.StandingsLists[0].ConstructorStandings.map(
+  const constructors: ConstructorStanding[] = data.MRData.StandingsTable.StandingsLists[0].ConstructorStandings.map(
     (entry): ConstructorStanding => ({
       position: parseInt(entry.position, 10),
       constructor: entry.Constructor.name,
       nationality: entry.Constructor.nationality,
+      constructorId: entry.Constructor.constructorId,
       points: parseInt(entry.points, 10),
       wins: parseInt(entry.wins, 10),
-    })
+    }),
   );
+
+  const logos = await Promise.allSettled(
+    constructors.map((c) => {
+      const wikiUrl = data.MRData!.StandingsTable!.StandingsLists![0]!.ConstructorStandings![
+        constructors.indexOf(c)
+      ]?.Constructor?.url;
+      return wikiUrl ? fetchWikipediaThumbnail(wikiUrl) : Promise.resolve(null);
+    }),
+  );
+
+  return constructors.map((c, i) => ({
+    ...c,
+    logoUrl: logos[i].status === "fulfilled" ? (logos[i].value ?? undefined) : undefined,
+  }));
 }
 
 export async function fetchRaceCalendar(): Promise<RaceCalendarEntry[]> {

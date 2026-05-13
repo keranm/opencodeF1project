@@ -54,16 +54,22 @@ export interface DriverStanding {
   driverName: string;
   driverNationality: string;
   constructor: string;
+  constructorId: string;
   points: number;
   wins: number;
+  driverId: string;
+  code: string;
+  imageUrl?: string;
 }
 
 export interface ConstructorStanding {
   position: number;
   constructor: string;
   nationality: string;
+  constructorId: string;
   points: number;
   wins: number;
+  logoUrl?: string;
 }
 
 export interface RaceCalendarEntry {
