@@ -65,7 +65,7 @@ const BASE_URL = "https://api.jolpi.ca/ergast/f1";
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
     const response = await fetch(url, {
-      next: { revalidate: 21600 },
+      next: { revalidate: 2220 },
       headers: { "Accept": "application/json" },
     });
     if (!response.ok) return null;

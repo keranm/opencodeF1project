@@ -29,7 +29,7 @@ export async function fetchYouTubeVideos(apiKey?: string): Promise<YouTubeVideo[
   for (const channel of YOUTUBE_CHANNELS) {
     try {
       const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&maxResults=${MAX_VIDEOS_PER_CHANNEL}&order=date&type=video&key=${apiKey}`;
-      const response = await fetch(url, { next: { revalidate: 21600 } });
+      const response = await fetch(url, { next: { revalidate: 2220 } });
       
       if (!response.ok) continue;
 

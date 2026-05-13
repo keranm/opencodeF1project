@@ -6,7 +6,7 @@ import StandingsTable from "@/components/StandingsTable";
 import RaceCalendar from "@/components/RaceCalendar";
 import VideoStrip from "@/components/VideoStrip";
 
-export const revalidate = 21600;
+export const revalidate = 2220;
 
 export default async function HomePage() {
   const data = await getDashboardData();

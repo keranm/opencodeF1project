@@ -13,7 +13,7 @@ export interface DashboardData {
   generatedAt: string;
 }
 
-const CACHE_TTL = 6 * 60 * 60 * 1000;
+const CACHE_TTL = 37 * 60 * 1000;
 
 let cachedData: { data: DashboardData; timestamp: number } | null = null;
 

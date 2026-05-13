@@ -4,7 +4,7 @@ import NewsGrid from "@/components/NewsGrid";
 import { getCategoryLabel } from "@/components/CategoryBadge";
 import type { ArticleCategory } from "@/types";
 
-export const revalidate = 21600;
+export const revalidate = 2220;
 export const dynamicParams = true;
 
 const VALID_CATEGORIES: ArticleCategory[] = ["driver-news", "team-news", "race-news", "general"];

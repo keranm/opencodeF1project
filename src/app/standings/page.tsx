@@ -1,7 +1,7 @@
 import { fetchDriverStandings, fetchConstructorStandings } from "@/lib/standings";
 import StandingsTable from "@/components/StandingsTable";
 
-export const revalidate = 21600;
+export const revalidate = 2220;
 
 export default async function StandingsPage() {
   const [drivers, constructors] = await Promise.all([

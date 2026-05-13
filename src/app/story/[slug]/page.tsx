@@ -6,7 +6,7 @@ import YouTubeSection from "@/components/YouTubeSection";
 import { fetchYouTubeVideos } from "@/lib/youtube";
 import type { YouTubeVideo } from "@/types";
 
-export const revalidate = 21600;
+export const revalidate = 2220;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {

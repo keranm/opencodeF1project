@@ -1,7 +1,7 @@
 import { fetchRaceCalendar } from "@/lib/standings";
 import RaceCalendar from "@/components/RaceCalendar";
 
-export const revalidate = 21600;
+export const revalidate = 2220;
 
 export default async function CalendarPage() {
   const calendar = await fetchRaceCalendar();

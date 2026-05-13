@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export default function Footer({
   generatedAt,
-  revalidateInterval = 21600,
+  revalidateInterval = 2220,
 }: {
   generatedAt?: string;
   revalidateInterval?: number;
