@@ -1,8 +1,8 @@
 import type { YouTubeVideo } from "@/types";
 
 const YOUTUBE_CHANNELS = [
-  { id: "UCF1-9qL4H9kPyFLz5mCjPmw", name: "Formula 1" },
-  { id: "UCvD0rVLRB-2Bh9B1JY7UxCg", name: "Kym Illman" },
+  { id: "UCB_qr75-ydFVKSF9Dmo6izg", name: "Formula 1" },
+  { id: "UCZqNme_MY-jl_1ziSr2VMjA", name: "Kym Illman" },
 ];
 
 const MAX_VIDEOS_PER_CHANNEL = 5;

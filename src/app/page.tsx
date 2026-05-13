@@ -4,7 +4,7 @@ import NewsGrid from "@/components/NewsGrid";
 import CategorySection from "@/components/CategorySection";
 import StandingsTable from "@/components/StandingsTable";
 import RaceCalendar from "@/components/RaceCalendar";
-import YouTubeSection from "@/components/YouTubeSection";
+import VideoStrip from "@/components/VideoStrip";
 
 export const revalidate = 21600;
 
@@ -18,6 +18,8 @@ export default async function HomePage() {
   return (
     <div className="space-y-12">
       {hero && <HeroStory cluster={hero} />}
+
+      {youtubeVideos.length > 0 && <VideoStrip videos={youtubeVideos} />}
 
       {latestClusters.length > 0 && (
         <NewsGrid clusters={latestClusters} title="Latest News" />
@@ -34,18 +36,12 @@ export default async function HomePage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {calendar.length > 0 && (
-          <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Race Calendar</h2>
-            <RaceCalendar calendar={calendar} />
-          </section>
-        )}
-
-        {youtubeVideos.length > 0 && (
-          <YouTubeSection videos={youtubeVideos.slice(0, 4)} title="Latest Videos" />
-        )}
-      </div>
+      {calendar.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Race Calendar</h2>
+          <RaceCalendar calendar={calendar} />
+        </section>
+      )}
     </div>
   );
 }
