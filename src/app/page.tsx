@@ -1,5 +1,5 @@
 import { getDashboardData } from "@/lib/data";
-import HeroStory from "@/components/HeroStory";
+import HeroCarousel from "@/components/HeroCarousel";
 import NewsGrid from "@/components/NewsGrid";
 import CategorySection from "@/components/CategorySection";
 import StandingsTable from "@/components/StandingsTable";
@@ -12,12 +12,12 @@ export default async function HomePage() {
   const data = await getDashboardData();
   const { clusters, driverStandings, constructorStandings, calendar, youtubeVideos } = data;
 
-  const [hero, ...rest] = clusters;
-  const latestClusters = rest.slice(0, 6);
+  const heroClusters = clusters.slice(0, 5);
+  const latestClusters = clusters.slice(5, 11);
 
   return (
     <div className="space-y-12">
-      {hero && <HeroStory cluster={hero} />}
+      {heroClusters.length > 0 && <HeroCarousel clusters={heroClusters} />}
 
       {youtubeVideos.length > 0 && <VideoStrip videos={youtubeVideos} />}
 
