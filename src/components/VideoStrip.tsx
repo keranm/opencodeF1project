@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import type { YouTubeVideo } from "@/types";
+import { trackEvent } from "@/lib/analytics";
 
 export default function VideoStrip({ videos }: { videos: YouTubeVideo[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,6 +54,7 @@ export default function VideoStrip({ videos }: { videos: YouTubeVideo[] }) {
             href={`https://www.youtube.com/watch?v=${video.id}`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEvent("Video", "click", video.title)}
             className="group flex-shrink-0 w-[260px] sm:w-[280px] snap-start bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all"
           >
             <div className="aspect-video bg-gray-100 relative">

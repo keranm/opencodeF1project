@@ -1,4 +1,7 @@
+"use client";
+
 import type { StoryCluster } from "@/types";
+import { trackEvent } from "@/lib/analytics";
 
 export default function SourceLinks({ cluster }: { cluster: StoryCluster }) {
   return (
@@ -46,6 +49,7 @@ export default function SourceLinks({ cluster }: { cluster: StoryCluster }) {
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackEvent("Source", "click", article.sourceName)}
                 className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
               >
                 Read
