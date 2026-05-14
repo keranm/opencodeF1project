@@ -223,38 +223,131 @@ function stripHtml(text: string): string {
     .replace(/&#x27;/g, "'");
 }
 
-function condenseArticles(articles: Article[]): string {
-  const best = [...articles].sort((a, b) => {
-    const tierDiff = a.sourceTier - b.sourceTier;
-    if (tierDiff !== 0) return tierDiff;
-    const aLen = (a.fullContent || a.content || "").length;
-    const bLen = (b.fullContent || b.content || "").length;
-    return bLen - aLen;
-  })[0];
+function cleanArticleParagraphs(raw: string, title: string, description: string): string[] {
+  const noisePatterns = /(show more tags|sign up for|newsletter|privacy policy|All the latest|Don't miss)/i;
+  const datePattern = /\d{1,2}:\d{2}(am|pm)/i;
 
-  if (!best) return "";
-
-  const raw = stripHtml(best.fullContent || best.content || best.description || "");
-  if (raw.length < 60) return best.description?.slice(0, 500) ?? "";
-
-  const paragraphs = raw
+  return raw
     .split(/\n+/)
     .map((p) => p.replace(/[ \t]+/g, " ").trim())
     .filter(Boolean)
-    .filter((p) => p.replace(/[^a-zA-Z0-9 ]/g, "").trim().split(/\s+/).filter(Boolean).length >= 4)
-    .filter((p) => !/^[{<\[\"]/.test(p));
+    .filter((p) => {
+      const clean = p.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+      return clean.split(/\s+/).filter(Boolean).length >= 4;
+    })
+    .filter((p) => !/^[{<\[\"]/.test(p))
+    .filter((p) => !(p.length < 120 && datePattern.test(p)))
+    .filter((p) => {
+      const pLow = p.toLowerCase();
+      const t = title.toLowerCase();
+      const d = description.toLowerCase();
+      if (t && pLow === t) return false;
+      if (d && pLow === d) return false;
+      if (t && pLow.startsWith(t.slice(0, 40))) return false;
+      if (d && pLow.startsWith(d.slice(0, 40))) return false;
+      return true;
+    })
+    .filter((p) => !(p.length < 120 && noisePatterns.test(p)))
+    .slice(0, 50);
+}
 
-  if (paragraphs.length === 0) return best.description?.slice(0, 500) ?? "";
+function getBodyStart(paragraphs: string[]): number {
+  const idx = paragraphs.findIndex((p) => p.length > 150);
+  return idx === -1 ? 0 : idx;
+}
+
+function condenseSingleSource(article: Article): string {
+  const raw = stripHtml(article.fullContent || article.content || article.description || "");
+  if (raw.length < 60) return (article.description || "").slice(0, 500);
+
+  const paragraphs = cleanArticleParagraphs(raw, article.title, article.description || "");
+  const body = paragraphs.slice(getBodyStart(paragraphs));
+
+  if (body.length === 0) return (article.description || "").slice(0, 500);
 
   let total = 0;
   const included: string[] = [];
-  for (const p of paragraphs) {
-    if (total + p.length > 2500) break;
+  for (const p of body) {
+    if (included.length > 0 && total + p.length > 2500) break;
     included.push(p);
     total += p.length;
   }
 
-  return included.join("\n\n") + `\n\n— ${best.sourceName}`;
+  return included.join("\n\n") + `\n\n— ${article.sourceName}`;
+}
+
+function jaccardOverlap(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(Boolean));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(Boolean));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  const intersect = [...wordsA].filter((w) => wordsB.has(w)).length;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return intersect / union;
+}
+
+function condenseMultiSource(articles: Article[]): string {
+  const sorted = [...articles].sort((a, b) => a.sourceTier - b.sourceTier);
+
+  type ParaSource = { text: string; sourceName: string; tier: number };
+  const allParas: ParaSource[] = [];
+
+  for (const article of sorted) {
+    const raw = stripHtml(article.fullContent || article.content || article.description || "");
+    if (raw.length < 60) continue;
+
+    const paragraphs = cleanArticleParagraphs(raw, article.title, article.description || "");
+    const body = paragraphs.slice(getBodyStart(paragraphs));
+
+    for (const p of body) {
+      const existing = allParas.find((ep) => jaccardOverlap(ep.text, p) > 0.75);
+      if (existing) {
+        if (article.sourceTier < existing.tier) {
+          existing.text = p;
+          existing.sourceName = article.sourceName;
+          existing.tier = article.sourceTier;
+        }
+      } else {
+        allParas.push({ text: p, sourceName: article.sourceName, tier: article.sourceTier });
+      }
+    }
+  }
+
+  if (allParas.length === 0) {
+    return condenseSingleSource(sorted[0]);
+  }
+
+  const primarySource = sorted[0];
+  const primaryRaw = stripHtml(primarySource.fullContent || primarySource.content || primarySource.description || "");
+  const primaryParas = cleanArticleParagraphs(primaryRaw, primarySource.title, primarySource.description || "");
+  const primaryBody = primaryParas.slice(getBodyStart(primaryParas));
+  const primaryTexts = new Set(primaryBody);
+
+  const ordered = allParas.sort((a, b) => {
+    const aIsPrimary = primaryTexts.has(a.text) ? 0 : 1;
+    const bIsPrimary = primaryTexts.has(b.text) ? 0 : 1;
+    return aIsPrimary - bIsPrimary;
+  });
+
+  let total = 0;
+  const included: string[] = [];
+  const usedSources = new Set<string>();
+  for (const p of ordered) {
+    if (included.length > 0 && total + p.text.length > 2500) break;
+    included.push(p.text);
+    total += p.text.length;
+    usedSources.add(p.sourceName);
+  }
+
+  if (included.length === 0) return (sorted[0]?.description || "").slice(0, 500);
+
+  const sourceList = [...usedSources].slice(0, 5).join(", ");
+  return included.join("\n\n") + `\n\n— Sources: ${sourceList}`;
+}
+
+function condenseArticles(articles: Article[]): string {
+  if (articles.length === 0) return "";
+  if (articles.length === 1) return condenseSingleSource(articles[0]);
+  return condenseMultiSource(articles);
 }
 
 function getDominantCategory(articles: Article[]): ArticleCategory {
