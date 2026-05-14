@@ -1,0 +1,12 @@
+name: Refresh RSS Data
+on:
+  schedule:
+    - cron: '*/37 * * * *'
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify rebuild
+        run: curl -X POST "${{ secrets.NETLIFY_BUILD_HOOK }}"
