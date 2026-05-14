@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { NEWS_SOURCES } from "./sources";
 import type { RawArticle } from "@/types";
+import { extractContent } from "./extractContent";
 
 const parser = new Parser({
   timeout: 10000,
@@ -75,12 +76,43 @@ function getDomain(url: string): string {
   }
 }
 
-async function extractOGImage(articleUrl: string): Promise<string | null> {
+function extractOGImageFromHtml(html: string, articleUrl: string): string | null {
+  const patterns = [
+    /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i,
+    /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match) {
+      const ogUrl = match[1];
+      if (ogUrl.startsWith("/")) {
+        try {
+          const base = new URL(articleUrl);
+          return `${base.protocol}//${base.host}${ogUrl}`;
+        } catch {
+          return ogUrl;
+        }
+      }
+      return ogUrl;
+    }
+  }
+  return null;
+}
+
+function needsHtmlFetch(article: RawArticle): boolean {
+  const short = (article.content || "").replace(/<[^>]+>/g, "").trim().split(/\s+/).filter(Boolean).length < 40;
+  return !article.imageUrl || short;
+}
+
+async function fetchAndEnrich(article: RawArticle): Promise<void> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(articleUrl, {
+    const response = await fetch(article.url, {
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; F1-Dashboard/1.0)",
@@ -89,36 +121,16 @@ async function extractOGImage(articleUrl: string): Promise<string | null> {
     });
     clearTimeout(timeout);
 
-    if (!response.ok) return null;
-
+    if (!response.ok) return;
     const html = await response.text();
 
-    const patterns = [
-      /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
-      /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i,
-      /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
-      /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/i,
-    ];
-
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match) {
-        const ogUrl = match[1];
-        if (ogUrl.startsWith("/")) {
-          try {
-            const base = new URL(articleUrl);
-            return `${base.protocol}//${base.host}${ogUrl}`;
-          } catch {
-            return ogUrl;
-          }
-        }
-        return ogUrl;
-      }
+    if (!article.imageUrl) {
+      article.imageUrl = extractOGImageFromHtml(html, article.url);
     }
 
-    return null;
+    article.fullContent = extractContent(html, article.url);
   } catch {
-    return null;
+    // silently fail
   }
 }
 
@@ -184,31 +196,17 @@ export async function fetchAllFeeds(): Promise<RawArticle[]> {
     }
   }
 
-  const articlesWithoutImage = allArticles.filter((a) => !a.imageUrl);
-  const uniqueDomains = new Set(articlesWithoutImage.map((a) => getDomain(a.url)));
-
+  const articlesToFetch = allArticles.filter(needsHtmlFetch);
   console.log(
-    `  → ${allArticles.length} articles fetched (${articlesWithoutImage.length} without images across ${uniqueDomains.size} domains)`
+    `  → ${allArticles.length} articles fetched (${articlesToFetch.length} need HTML fetch for images/content)`
   );
 
-  if (articlesWithoutImage.length > 0) {
-    const ogResults = await runConcurrent(
-      articlesWithoutImage,
-      async (article) => {
-        const ogUrl = await extractOGImage(article.url);
-        return { article, ogUrl };
-      },
-      5
-    );
-
-    let found = 0;
-    for (const { article, ogUrl } of ogResults) {
-      if (ogUrl) {
-        article.imageUrl = ogUrl;
-        found++;
-      }
-    }
-    console.log(`  → OG images found for ${found}/${articlesWithoutImage.length} articles`);
+  if (articlesToFetch.length > 0) {
+    await runConcurrent(articlesToFetch, fetchAndEnrich, 5);
+    const withOg = allArticles.filter((a) => a.imageUrl).length;
+    const withContent = allArticles.filter((a) => a.fullContent).length;
+    const imageGain = allArticles.filter((a) => a.imageUrl).length - (allArticles.length - articlesToFetch.filter((a) => !a.imageUrl).length);
+    console.log(`  → OG images: ${allArticles.filter((a) => a.imageUrl).length}/${allArticles.length}, full content: ${withContent}/${allArticles.length}`);
   }
 
   return allArticles.sort(

@@ -20,6 +20,7 @@ export interface RawArticle {
   imageUrl: string | null;
   publishedAt: string;
   categories: string[];
+  fullContent?: string;
 }
 
 export type ArticleCategory = "driver-news" | "team-news" | "race-news" | "general";
@@ -41,6 +42,7 @@ export interface StoryCluster {
   sourceCount: number;
   latestDate: string;
   youtubeVideos: YouTubeVideo[];
+  condensedContent: string;
 }
 
 export interface KeyPoint {

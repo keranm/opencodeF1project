@@ -12,6 +12,7 @@ export default function Matomo() {
   useEffect(() => {
     if (!MATOMO_URL || !SITE_ID) return;
     if (typeof window === "undefined") return;
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
     if ((window as any)._paq) return;
 
     (window as any)._paq = (window as any)._paq || [];

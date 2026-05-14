@@ -5,6 +5,18 @@ import Link from "next/link";
 import type { StoryCluster } from "@/types";
 import CategoryBadge, { getCategoryGradient } from "./CategoryBadge";
 
+function CarouselDate({ date }: { date: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <span>{new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}</span>;
+}
+
 export default function HeroCarousel({ clusters }: { clusters: StoryCluster[] }) {
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -61,12 +73,7 @@ export default function HeroCarousel({ clusters }: { clusters: StoryCluster[] })
               </p>
               <div className="flex items-center gap-4 text-sm text-gray-400">
                 <span>{cluster.sourceCount} source{cluster.sourceCount > 1 ? "s" : ""}</span>
-                <span>{new Date(cluster.latestDate).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}</span>
+                <CarouselDate date={cluster.latestDate} />
               </div>
             </div>
           </Link>

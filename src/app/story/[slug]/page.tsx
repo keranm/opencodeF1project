@@ -6,6 +6,13 @@ import YouTubeSection from "@/components/YouTubeSection";
 import { fetchYouTubeVideos } from "@/lib/youtube";
 import type { YouTubeVideo } from "@/types";
 
+function formatCondensed(text: string): string[] {
+  return text
+    .split("\n\n")
+    .map((b) => b.trim())
+    .filter(Boolean);
+}
+
 export const revalidate = 2220;
 export const dynamicParams = true;
 
@@ -49,19 +56,18 @@ export default async function StoryPage({
 
       <ExecutiveSummary cluster={cluster} />
 
-      <div className="mt-8 space-y-6">
-        {cluster.articles.slice(0, 1).map((article) => (
-          <div key={article.id}>
-            {article.content && (
-              <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed">
-                {article.content.split("\n").filter(Boolean).slice(0, 20).map((paragraph, i) => (
-                  <p key={i} className="mb-4">{paragraph}</p>
-                ))}
-              </div>
-            )}
+      {cluster.condensedContent && (
+        <div className="mt-8 bg-white border border-gray-100 rounded-2xl p-6 sm:p-8">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+            Condensed Article
+          </h2>
+          <div className="text-sm sm:text-base text-gray-700 leading-relaxed space-y-4">
+            {formatCondensed(cluster.condensedContent).map((block, i) => (
+              <p key={i}>{block}</p>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {youtubeVideos.length > 0 && (
         <div className="mt-10">

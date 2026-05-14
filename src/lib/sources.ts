@@ -19,7 +19,7 @@ export const NEWS_SOURCES: NewsSource[] = [
     id: "autosport",
     name: "Autosport",
     siteUrl: "https://www.autosport.com/f1",
-    rssUrl: "https://www.autosport.com/f1/rss",
+    rssUrl: "https://www.autosport.com/f1/rss/",
     tier: 1,
   },
   {
@@ -40,7 +40,7 @@ export const NEWS_SOURCES: NewsSource[] = [
     id: "planetf1",
     name: "PlanetF1",
     siteUrl: "https://www.planetf1.com",
-    rssUrl: "https://www.planetf1.com/feed",
+    rssUrl: "https://www.planetf1.com/rss",
     tier: 2,
   },
   {
@@ -50,13 +50,7 @@ export const NEWS_SOURCES: NewsSource[] = [
     rssUrl: "https://www.crash.net/rss/f1",
     tier: 2,
   },
-  {
-    id: "gpblog",
-    name: "GP Blog",
-    siteUrl: "https://www.gpblog.com",
-    rssUrl: "https://www.gpblog.com/en/rss",
-    tier: 2,
-  },
+
   {
     id: "racefans",
     name: "Racefans",

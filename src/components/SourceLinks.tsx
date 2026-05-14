@@ -1,7 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { StoryCluster } from "@/types";
 import { trackEvent } from "@/lib/analytics";
+
+function SourceDate({ date }: { date: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <span>{new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}</span>;
+}
 
 export default function SourceLinks({ cluster }: { cluster: StoryCluster }) {
   return (
@@ -36,13 +48,7 @@ export default function SourceLinks({ cluster }: { cluster: StoryCluster }) {
                   {article.description || article.content?.slice(0, 200)}
                 </p>
                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                  <span>
-                    {new Date(article.publishedAt).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <SourceDate date={article.publishedAt} />
                 </div>
               </div>
               <a

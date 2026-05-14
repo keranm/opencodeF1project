@@ -116,12 +116,6 @@ export function clusterArticles(rawArticles: RawArticle[]): StoryCluster[] {
     const primaryArticle = clusterArticles[0];
     const category = getDominantCategory(clusterArticles);
 
-    const keyPoints: KeyPoint[] = clusterArticles.map((a) => ({
-      text: a.description.slice(0, 200) || a.title,
-      sourceName: a.sourceName,
-      sourceUrl: a.url,
-    }));
-
     const slug = generateSlug(primaryArticle.title);
     const clusterId = `${slug}-${Date.now()}`;
 
@@ -129,20 +123,171 @@ export function clusterArticles(rawArticles: RawArticle[]): StoryCluster[] {
       id: clusterId,
       slug,
       title: primaryArticle.title,
-      summarySentence: primaryArticle.description.slice(0, 300),
-      keyPoints,
+      summarySentence: getBestDescription(clusterArticles),
+      keyPoints: extractKeyPoints(clusterArticles),
       articles: clusterArticles,
       category,
       primaryImageUrl: clusterArticles.find((a) => a.imageUrl)?.imageUrl || getFallbackImage(category),
       sourceCount: clusterArticles.length,
       latestDate: clusterArticles[0].publishedAt,
       youtubeVideos: [],
+      condensedContent: condenseArticles(clusterArticles),
     });
   }
 
   return clusters.sort(
     (a, b) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
   );
+}
+
+function getBestDescription(articles: Article[]): string {
+  let best = "";
+  let bestScore = -1;
+
+  for (const a of articles) {
+    const desc = (a.description || "").trim();
+    if (desc.length < 60) continue;
+
+    const titleWords = new Set(a.title.toLowerCase().split(/\s+/).filter(Boolean));
+    const descWords = desc.toLowerCase().split(/\s+/).filter(Boolean);
+    const overlap = descWords.filter((w) => titleWords.has(w)).length / Math.max(descWords.length, 1);
+
+    const score = Math.min(desc.length / 300, 1) * 0.4 + (1 - overlap) * 0.6;
+    if (score > bestScore) {
+      bestScore = score;
+      best = desc.slice(0, 300);
+    }
+  }
+
+  return best || (articles[0]?.description.slice(0, 300) ?? "");
+}
+
+function extractKeyPoints(articles: Article[]): KeyPoint[] {
+  const points: KeyPoint[] = [];
+  const seenNorms = new Set<string>();
+  const sorted = [...articles].sort((a, b) => a.sourceTier - b.sourceTier);
+
+  for (const article of sorted) {
+    if (points.length >= 6) break;
+
+    const body = stripHtml(article.fullContent || article.content || article.description || "");
+    const sentences = body
+      .split(/[.!?]\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 60 && s.length < 350)
+      .filter((s) => {
+        const titleWords = new Set(article.title.toLowerCase().split(/\s+/).filter(Boolean));
+        const sWords = s.toLowerCase().split(/\s+/).filter(Boolean);
+        return sWords.filter((w) => titleWords.has(w)).length / sWords.length < 0.65;
+      });
+
+    for (const sentence of sentences) {
+      if (points.length >= 6) break;
+
+      const norm = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+      if (!norm || seenNorms.has(norm)) continue;
+
+      const words = new Set(norm.split(/\s+/).filter(Boolean));
+      let isDuplicate = false;
+      for (const seen of seenNorms) {
+        const seenWords = new Set(seen.split(/\s+/).filter(Boolean));
+        const intersection = [...words].filter((w) => seenWords.has(w)).length;
+        const union = new Set([...words, ...seenWords]).size;
+        if (union > 0 && intersection / union > 0.55) {
+          isDuplicate = true;
+          break;
+        }
+      }
+      if (isDuplicate) continue;
+
+      seenNorms.add(norm);
+      points.push({
+        text: sentence.slice(0, 250),
+        sourceName: article.sourceName,
+        sourceUrl: article.url,
+      });
+    }
+  }
+
+  return points;
+}
+
+function stripHtml(text: string): string {
+  return text
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'");
+}
+
+function condenseArticles(articles: Article[]): string {
+  const sorted = [...articles].sort((a, b) => {
+    const tierDiff = a.sourceTier - b.sourceTier;
+    if (tierDiff !== 0) return tierDiff;
+    const aLen = (a.fullContent || a.content || a.description || "").length;
+    const bLen = (b.fullContent || b.content || b.description || "").length;
+    return bLen - aLen;
+  });
+
+  const seenTexts: string[] = [];
+  const blocks: string[] = [];
+  const sourceNames = new Set<string>();
+
+  function isDuplicate(text: string): boolean {
+    const wordsA = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
+    for (const seen of seenTexts) {
+      const wordsB = new Set(seen.toLowerCase().split(/\s+/).filter(Boolean));
+      const intersect = [...wordsA].filter((w) => wordsB.has(w)).length;
+      const union = new Set([...wordsA, ...wordsB]).size;
+      if (union > 0 && intersect / union > 0.85) return true;
+    }
+    return false;
+  }
+
+  function isTitleOverlap(text: string, title: string): boolean {
+    const wordsA = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
+    const wordsB = new Set(title.toLowerCase().split(/\s+/).filter(Boolean));
+    const intersect = [...wordsA].filter((w) => wordsB.has(w)).length;
+    return intersect / wordsA.size > 0.6;
+  }
+
+  for (const article of sorted) {
+    if (blocks.join("\n\n").length > 2500) break;
+    sourceNames.add(article.sourceName);
+
+    const raw = stripHtml(article.fullContent || article.content || article.description || "");
+    if (raw.length < 80) continue;
+
+    const paragraphs = raw
+      .split(/\n+/)
+      .map((p) => p.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean)
+      .filter((p) => {
+        const clean = p.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+        const wc = clean.split(/\s+/).filter(Boolean).length;
+        return wc >= 4;
+      })
+      .filter((p) => !/^[{<\[\"]/.test(p))
+      .filter((p) => !isTitleOverlap(p, article.title))
+      .filter((p) => !isDuplicate(p));
+
+    if (paragraphs.length === 0) continue;
+
+    blocks.push(paragraphs.join(" "));
+    for (const p of paragraphs) {
+      seenTexts.push(p);
+    }
+  }
+
+  if (blocks.length === 0) {
+    return sorted[0]?.description?.slice(0, 500) ?? "";
+  }
+
+  const sourceList = [...sourceNames].slice(0, 5).join(", ");
+  return blocks.join("\n\n") + `\n\n— Sources: ${sourceList}`;
 }
 
 function getDominantCategory(articles: Article[]): ArticleCategory {
