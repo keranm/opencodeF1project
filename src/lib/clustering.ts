@@ -233,8 +233,9 @@ function condenseArticles(articles: Article[]): string {
   });
 
   const seenTexts: string[] = [];
-  const blocks: string[] = [];
+  const paragraphs: string[] = [];
   const sourceNames = new Set<string>();
+  let totalChars = 0;
 
   function isDuplicate(text: string): boolean {
     const wordsA = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
@@ -255,13 +256,13 @@ function condenseArticles(articles: Article[]): string {
   }
 
   for (const article of sorted) {
-    if (blocks.join("\n\n").length > 2500) break;
+    if (totalChars > 2500) break;
     sourceNames.add(article.sourceName);
 
     const raw = stripHtml(article.fullContent || article.content || article.description || "");
     if (raw.length < 80) continue;
 
-    const paragraphs = raw
+    const articleParas = raw
       .split(/\n+/)
       .map((p) => p.replace(/[ \t]+/g, " ").trim())
       .filter(Boolean)
@@ -274,20 +275,22 @@ function condenseArticles(articles: Article[]): string {
       .filter((p) => !isTitleOverlap(p, article.title))
       .filter((p) => !isDuplicate(p));
 
-    if (paragraphs.length === 0) continue;
+    if (articleParas.length === 0) continue;
 
-    blocks.push(paragraphs.join(" "));
-    for (const p of paragraphs) {
+    for (const p of articleParas) {
+      if (totalChars + p.length > 2500) break;
+      paragraphs.push(p);
       seenTexts.push(p);
+      totalChars += p.length;
     }
   }
 
-  if (blocks.length === 0) {
+  if (paragraphs.length === 0) {
     return sorted[0]?.description?.slice(0, 500) ?? "";
   }
 
   const sourceList = [...sourceNames].slice(0, 5).join(", ");
-  return blocks.join("\n\n") + `\n\n— Sources: ${sourceList}`;
+  return paragraphs.join("\n\n") + `\n\n— Sources: ${sourceList}`;
 }
 
 function getDominantCategory(articles: Article[]): ArticleCategory {
