@@ -27,17 +27,7 @@ export default function ExecutiveSummary({
               <li key={i} className="flex gap-3">
                 <span className="flex-shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-red-500" />
                 <span className="text-sm text-gray-700">
-                  {point.text.length > 200
-                    ? `${point.text.slice(0, 200)}...`
-                    : point.text}
-                  <a
-                    href={point.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-red-600 hover:text-red-700 font-medium ml-1 whitespace-nowrap"
-                  >
-                    ({point.sourceName})
-                  </a>
+                  {point.text}
                 </span>
               </li>
             ))}

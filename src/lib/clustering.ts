@@ -174,7 +174,7 @@ function extractKeyPoints(articles: Article[]): KeyPoint[] {
     const sentences = body
       .split(/[.!?]\s+/)
       .map((s) => s.trim())
-      .filter((s) => s.length > 60 && s.length < 350)
+      .filter((s) => s.length > 60 && s.length < 800)
       .filter((s) => {
         const titleWords = new Set(article.title.toLowerCase().split(/\s+/).filter(Boolean));
         const sWords = s.toLowerCase().split(/\s+/).filter(Boolean);
@@ -202,7 +202,7 @@ function extractKeyPoints(articles: Article[]): KeyPoint[] {
 
       seenNorms.add(norm);
       points.push({
-        text: sentence.slice(0, 250),
+        text: sentence,
         sourceName: article.sourceName,
         sourceUrl: article.url,
       });
