@@ -224,73 +224,37 @@ function stripHtml(text: string): string {
 }
 
 function condenseArticles(articles: Article[]): string {
-  const sorted = [...articles].sort((a, b) => {
+  const best = [...articles].sort((a, b) => {
     const tierDiff = a.sourceTier - b.sourceTier;
     if (tierDiff !== 0) return tierDiff;
-    const aLen = (a.fullContent || a.content || a.description || "").length;
-    const bLen = (b.fullContent || b.content || b.description || "").length;
+    const aLen = (a.fullContent || a.content || "").length;
+    const bLen = (b.fullContent || b.content || "").length;
     return bLen - aLen;
-  });
+  })[0];
 
-  const seenTexts: string[] = [];
-  const paragraphs: string[] = [];
-  const sourceNames = new Set<string>();
-  let totalChars = 0;
+  if (!best) return "";
 
-  function isDuplicate(text: string): boolean {
-    const wordsA = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
-    for (const seen of seenTexts) {
-      const wordsB = new Set(seen.toLowerCase().split(/\s+/).filter(Boolean));
-      const intersect = [...wordsA].filter((w) => wordsB.has(w)).length;
-      const union = new Set([...wordsA, ...wordsB]).size;
-      if (union > 0 && intersect / union > 0.85) return true;
-    }
-    return false;
+  const raw = stripHtml(best.fullContent || best.content || best.description || "");
+  if (raw.length < 60) return best.description?.slice(0, 500) ?? "";
+
+  const paragraphs = raw
+    .split(/\n+/)
+    .map((p) => p.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean)
+    .filter((p) => p.replace(/[^a-zA-Z0-9 ]/g, "").trim().split(/\s+/).filter(Boolean).length >= 4)
+    .filter((p) => !/^[{<\[\"]/.test(p));
+
+  if (paragraphs.length === 0) return best.description?.slice(0, 500) ?? "";
+
+  let total = 0;
+  const included: string[] = [];
+  for (const p of paragraphs) {
+    if (total + p.length > 2500) break;
+    included.push(p);
+    total += p.length;
   }
 
-  function isTitleOverlap(text: string, title: string): boolean {
-    const wordsA = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
-    const wordsB = new Set(title.toLowerCase().split(/\s+/).filter(Boolean));
-    const intersect = [...wordsA].filter((w) => wordsB.has(w)).length;
-    return intersect / wordsA.size > 0.6;
-  }
-
-  for (const article of sorted) {
-    if (totalChars > 2500) break;
-    sourceNames.add(article.sourceName);
-
-    const raw = stripHtml(article.fullContent || article.content || article.description || "");
-    if (raw.length < 80) continue;
-
-    const articleParas = raw
-      .split(/\n+/)
-      .map((p) => p.replace(/[ \t]+/g, " ").trim())
-      .filter(Boolean)
-      .filter((p) => {
-        const clean = p.replace(/[^a-zA-Z0-9\s]/g, "").trim();
-        const wc = clean.split(/\s+/).filter(Boolean).length;
-        return wc >= 4;
-      })
-      .filter((p) => !/^[{<\[\"]/.test(p))
-      .filter((p) => !isTitleOverlap(p, article.title))
-      .filter((p) => !isDuplicate(p));
-
-    if (articleParas.length === 0) continue;
-
-    for (const p of articleParas) {
-      if (totalChars + p.length > 2500) break;
-      paragraphs.push(p);
-      seenTexts.push(p);
-      totalChars += p.length;
-    }
-  }
-
-  if (paragraphs.length === 0) {
-    return sorted[0]?.description?.slice(0, 500) ?? "";
-  }
-
-  const sourceList = [...sourceNames].slice(0, 5).join(", ");
-  return paragraphs.join("\n\n") + `\n\n— Sources: ${sourceList}`;
+  return included.join("\n\n") + `\n\n— ${best.sourceName}`;
 }
 
 function getDominantCategory(articles: Article[]): ArticleCategory {
